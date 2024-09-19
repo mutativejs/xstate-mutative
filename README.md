@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/xstate-mutative.svg)](https://www.npmjs.com/package/xstate-mutative)
 ![license](https://img.shields.io/npm/l/xstate-mutative)
 
-A utilities for using [Mutative](https://github.com/unadlib/mutative) with XState
+A faster and more flexible utilities for using [Mutative](https://github.com/unadlib/mutative) with XState
 
 `xstate-mutative` is more than 10x faster than `@xstate/immer`. [Read more about the performance comparison in Mutative](https://mutative.js.org/docs/getting-started/performance).
 
