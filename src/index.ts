@@ -75,7 +75,8 @@ export function createUpdater<
   TContext extends MachineContext,
   TExpressionEvent extends MutativeUpdateEvent,
   TEvent extends EventObject,
-  TActor extends ProvidedActor = ProvidedActor
+  TActor extends ProvidedActor = ProvidedActor,
+  TAutoFreeze extends boolean = false
 >(
   type: TExpressionEvent['type'],
   recipe: MutativeAssigner<
@@ -84,7 +85,8 @@ export function createUpdater<
     ParameterizedObject['params'] | undefined,
     TEvent,
     TActor
-  >
+  >,
+  mutativeOptions?: MutativeOptions<false, TAutoFreeze>
 ) {
   const update = (input: TExpressionEvent['input']): TExpressionEvent => {
     return {
@@ -100,8 +102,9 @@ export function createUpdater<
       TExpressionEvent,
       ParameterizedObject['params'] | undefined, // TODO: not sure if this is correct
       TEvent,
-      TActor
-    >(recipe),
+      TActor,
+      TAutoFreeze
+    >(recipe, mutativeOptions),
     type,
   };
 }
