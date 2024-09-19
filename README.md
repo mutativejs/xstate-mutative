@@ -19,11 +19,11 @@ npm install xstate mutative xstate-mutative
 
 ## Usage
 
-Import the Immer utilities:
+Import the Mutative utilities:
 
 ```js
 import { createMachine, interpret } from 'xstate';
-import { assign, createUpdater } from '@xstate/immer';
+import { assign, createUpdater } from 'xstate-mutative';
 
 const levelUpdater = createUpdater('UPDATE_LEVEL', (ctx, { input }) => {
   ctx.level = input;
@@ -42,7 +42,7 @@ const toggleMachine = createMachine({
         TOGGLE: {
           target: 'active',
           // Immutably update context the same "mutable"
-          // way as you would do with Immer!
+          // way as you would do with Mutative!
           actions: assign((ctx) => ctx.count++),
         },
       },
