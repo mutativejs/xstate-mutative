@@ -1,6 +1,6 @@
 {
   "name": "xstate-mutative",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A utilities for using Mutative with XState",
   "main": "dist/index.cjs.js",
   "unpkg": "dist/index.umd.js",
