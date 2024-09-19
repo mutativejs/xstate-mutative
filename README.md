@@ -1,2 +1,4 @@
 # xstate-mutative
-XState with Mutative
+A utilities for using Mutative with XState
+
+
