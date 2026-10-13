@@ -145,7 +145,7 @@ const addTodo = assign(
 );
 ```
 
-- [Strict mode](https://mutative.js.org/docs/advanced-guides/strict-mode): reading a value that cannot be drafted, such as a class instance, throws unless the read happens inside `unsafe()`. Development builds also warn once when a recipe leaves 1,000 or more drafts unchanged, as a search through a large array does; search a `current(context.list)` snapshot instead and change the match through the draft.
+- [Strict mode](https://mutative.js.org/docs/advanced-guides/strict-mode): reading a value that cannot be drafted, such as a class instance, throws unless the read happens inside `unsafe()`. Development builds also warn once when a recipe leaves 1,000 or more drafts unchanged, as a search through a large array does; search a `current(context.list)` snapshot instead and change the match through the draft. Import `unsafe()` and `current()` from `mutative`.
 - [Auto Freeze](https://mutative.js.org/docs/advanced-guides/auto-freeze): deeply freezes the values that the next context holds, including Map and Set instances since Mutative 2 (XState copies the context object itself, so that object stays unfrozen). It also freezes the class instances that the context holds, so leave it off for a context that holds actor references, such as spawned actors.
 - [Marking data structure](https://mutative.js.org/docs/advanced-guides/mark): makes class instances draftable, or keeps values out of drafts.
 
