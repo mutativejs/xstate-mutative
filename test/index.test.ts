@@ -1,4 +1,4 @@
-import { unsafe } from 'mutative';
+import { current, unsafe } from 'mutative';
 import { createMachine, createActor, type ProvidedActor } from 'xstate';
 import { assign, createUpdater, MutativeUpdateEvent } from '../src';
 
@@ -404,4 +404,109 @@ it('should forbid reading values that cannot be drafted in strict mode', () => {
   expect(errors).toHaveLength(1);
   expect(errors[0]).toBeInstanceOf(Error);
   expect(actorRef.getSnapshot().status).toBe('error');
+});
+
+it('should move array elements without modifying previous contexts', () => {
+  interface Job {
+    id: number;
+    attempts: number;
+  }
+  const machine = createMachine({
+    types: {} as {
+      context: { queue: Job[] };
+      events: { type: 'RETRY' } | { type: 'REORDER' };
+    },
+    context: { queue: [0, 1, 2, 3].map((id) => ({ id, attempts: 0 })) },
+    on: {
+      RETRY: {
+        actions: assign(({ context }) => {
+          // shift() returns the removed job as a draft, so changing it leaves
+          // the previous context alone.
+          const job = context.queue.shift()!;
+          job.attempts += 1;
+          context.queue.push(job);
+        }),
+      },
+      REORDER: {
+        actions: assign(({ context }) => {
+          const [job] = context.queue.splice(1, 1);
+          context.queue.unshift(job);
+          context.queue.reverse();
+        }),
+      },
+    },
+  });
+
+  const actorRef = createActor(machine).start();
+  const initial = actorRef.getSnapshot().context;
+  actorRef.send({ type: 'RETRY' });
+  const retried = actorRef.getSnapshot().context;
+
+  expect(retried.queue).toEqual([
+    { id: 1, attempts: 0 },
+    { id: 2, attempts: 0 },
+    { id: 3, attempts: 0 },
+    { id: 0, attempts: 1 },
+  ]);
+  expect(initial.queue).toEqual([
+    { id: 0, attempts: 0 },
+    { id: 1, attempts: 0 },
+    { id: 2, attempts: 0 },
+    { id: 3, attempts: 0 },
+  ]);
+  // The jobs that only moved keep their identity.
+  expect(retried.queue[0]).toBe(initial.queue[1]);
+  expect(retried.queue[2]).toBe(initial.queue[3]);
+
+  actorRef.send({ type: 'REORDER' });
+  const reordered = actorRef.getSnapshot().context;
+  expect(reordered.queue.map((job) => job.id)).toEqual([0, 3, 1, 2]);
+  expect(retried.queue.map((job) => job.id)).toEqual([1, 2, 3, 0]);
+  expect(reordered.queue[0]).toBe(retried.queue[3]);
+});
+
+it('should search a current() snapshot and change the match through the draft', () => {
+  interface Row {
+    id: number;
+    paused: boolean;
+  }
+  const machine = createMachine({
+    types: {} as {
+      context: { rows: Row[] };
+      events: { type: 'PAUSE'; id: number };
+    },
+    context: {
+      rows: Array.from({ length: 2000 }, (_, id) => ({ id, paused: false })),
+    },
+    on: {
+      PAUSE: {
+        actions: assign(
+          ({ context, event }) => {
+            const index = current(context.rows).findIndex(
+              (row) => row.id === event.id
+            );
+            context.rows[index].paused = true;
+          },
+          { strict: true }
+        ),
+      },
+    },
+  });
+
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    const actorRef = createActor(machine).start();
+    const previous = actorRef.getSnapshot().context;
+    actorRef.send({ type: 'PAUSE', id: 1500 });
+    const next = actorRef.getSnapshot().context;
+
+    expect(next.rows[1500]).toEqual({ id: 1500, paused: true });
+    expect(previous.rows[1500]).toEqual({ id: 1500, paused: false });
+    expect(next.rows[0]).toBe(previous.rows[0]);
+    // A search through the draft would leave a draft for each row that it
+    // visits, which strict mode reports in development builds.
+    expect(warn).not.toHaveBeenCalled();
+  } finally {
+    warn.mockRestore();
+  }
 });
