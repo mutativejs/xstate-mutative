@@ -84,6 +84,14 @@
   },
   "jest": {
     "preset": "ts-jest",
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "test/tsconfig.json"
+        }
+      ]
+    },
     "testEnvironment": "jsdom",
     "globals": {
       "__DEV__": false
