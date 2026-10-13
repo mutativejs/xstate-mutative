@@ -30,7 +30,7 @@ export default {
       sourcemap: true,
       globals: {
         mutative: 'Mutative',
-        xstate: 'Xstate',
+        xstate: 'XState',
         react: 'React',
       },
       exports: 'named',
