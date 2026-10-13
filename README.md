@@ -154,6 +154,7 @@ const addTodo = assign(
 ### Caveats
 
 - `assign()` ignores what a recipe returns, so a recipe has to change the draft. `assign(() => ({ count: 0 }))`, which works with XState's own `assign()`, leaves the context unchanged here; write `assign(({ context }) => { context.count = 0; })` instead.
+- Deleting a key of the context has no effect, as XState merges the next context into a copy of the previous one, which still holds the key. Set the key to `undefined` instead; the context then keeps it with the value `undefined`.
 
 ## Credits
 
