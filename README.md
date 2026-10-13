@@ -149,7 +149,7 @@ const addTodo = assign(
 - [Auto Freeze](https://mutative.js.org/docs/advanced-guides/auto-freeze): deeply freezes the values that the next context holds, including Map and Set instances since Mutative 2 (XState copies the context object itself, so that object stays unfrozen). It also freezes the class instances that the context holds, so leave it off for a context that holds actor references, such as spawned actors.
 - [Marking data structure](https://mutative.js.org/docs/advanced-guides/mark): makes class instances draftable, or keeps values out of drafts.
 
-`enablePatches` is not supported, since an `assign()` action has to return the next context.
+`enablePatches` is not supported and is turned off, since an `assign()` action has to return the next context.
 
 ### Caveats
 

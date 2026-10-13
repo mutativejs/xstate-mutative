@@ -7,6 +7,8 @@ import {
   MutativeUpdateEvent,
 } from '../src';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 it('should update the context without modifying previous contexts', () => {
   const initialContext = {
     count: 0,
@@ -347,6 +349,63 @@ it('should ignore enablePatches, which the options type leaves out', () => {
   expect(actorRef.getSnapshot().context).toEqual({ count: 1 });
 });
 
+it('should let mutative check options that are not an object', () => {
+  const machine = createMachine({
+    types: {} as { context: { count: number } },
+    context: { count: 0 },
+    on: {
+      INC: {
+        actions: assign(
+          ({ context }) => {
+            context.count += 1;
+          },
+          // A JavaScript caller can pass a list of marks instead of options.
+          [() => undefined] as unknown as MutativeOptions<false, false>
+        ),
+      },
+    },
+  });
+
+  const errors: unknown[] = [];
+  const actorRef = createActor(machine);
+  actorRef.subscribe({ error: (error) => errors.push(error) });
+  actorRef.start();
+  actorRef.send({ type: 'INC' });
+
+  if (isProduction) {
+    // Production builds of Mutative skip the check and ignore such options.
+    expect(errors).toEqual([]);
+    expect(actorRef.getSnapshot().context).toEqual({ count: 1 });
+  } else {
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as Error).message).toMatch(/Invalid options/);
+    expect(actorRef.getSnapshot().context).toEqual({ count: 0 });
+  }
+});
+
+it('should read the mutative options on each update', () => {
+  const options: MutativeOptions<false, boolean> = {};
+  const machine = createMachine({
+    types: {} as { context: { list: number[] } },
+    context: { list: [] },
+    on: {
+      PUSH: {
+        actions: assign(({ context }) => {
+          context.list.push(1);
+        }, options),
+      },
+    },
+  });
+
+  const actorRef = createActor(machine).start();
+  actorRef.send({ type: 'PUSH' });
+  expect(Object.isFrozen(actorRef.getSnapshot().context.list)).toBe(false);
+
+  options.enableAutoFreeze = true;
+  actorRef.send({ type: 'PUSH' });
+  expect(Object.isFrozen(actorRef.getSnapshot().context.list)).toBe(true);
+});
+
 it('should type the mutative options as mutative does', () => {
   interface Context {
     tags: string[];
@@ -511,8 +570,6 @@ it('should move array elements without modifying previous contexts', () => {
   expect(retried.queue.map((job) => job.id)).toEqual([1, 2, 3, 0]);
   expect(reordered.queue[0]).toBe(retried.queue[3]);
 });
-
-const isProduction = process.env.NODE_ENV === 'production';
 
 // Pauses one of 2,000 rows in strict mode, searching a current() snapshot or
 // the draft itself. Mutative warns about unchanged drafts once per module

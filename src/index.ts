@@ -30,6 +30,16 @@ export type MutativeAssigner<
   params: TParams
 ) => void;
 
+// With patches, create() returns a tuple instead of the next context, so turn
+// them off also for JavaScript callers, which the types do not stop. Other
+// options go to create() as they are: it reads them on each call and rejects
+// options that are not an object.
+function withoutPatches<T>(options: T): T {
+  return options && (options as { enablePatches?: unknown }).enablePatches
+    ? { ...options, enablePatches: false }
+    : options;
+}
+
 function mutativeAssign<
   TContext extends MachineContext,
   TExpressionEvent extends EventObject = EventObject,
@@ -43,9 +53,6 @@ function mutativeAssign<
   recipe: MutativeAssigner<TContext, TExpressionEvent, TParams, TEvent, TActor>,
   mutativeOptions?: MutativeOptions<false, TAutoFreeze>
 ) {
-  // With patches, create() returns a tuple instead of the next context, so
-  // turn them off also for JavaScript callers, which the types do not stop.
-  const options = { ...mutativeOptions, enablePatches: false as const };
   return xstateAssign<TContext, TExpressionEvent, TParams, TEvent, TActor>(
     (args, params) =>
       create(
@@ -61,7 +68,7 @@ function mutativeAssign<
             params
           );
         },
-        options
+        withoutPatches(mutativeOptions)
       ) as LowInfer<TContext>
   );
 }
