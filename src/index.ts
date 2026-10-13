@@ -48,6 +48,9 @@ function mutativeAssign<
   recipe: MutativeAssigner<TContext, TExpressionEvent, TParams, TEvent, TActor>,
   mutativeOptions?: MutativeOptions<false, TAutoFreeze>
 ) {
+  // With patches, create() returns a tuple instead of the next context, so
+  // turn them off also for JavaScript callers, which the types do not stop.
+  const options = { ...mutativeOptions, enablePatches: false as const };
   return xstateAssign<TContext, TExpressionEvent, TParams, TEvent, TActor>(
     ({ context, ...rest }, params) =>
       create(
@@ -66,7 +69,7 @@ function mutativeAssign<
             params
           );
         },
-        mutativeOptions
+        options
       ) as LowInfer<TContext>
   );
 }

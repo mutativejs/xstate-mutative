@@ -1,6 +1,11 @@
 import { unsafe } from 'mutative';
 import { createMachine, createActor } from 'xstate';
-import { assign, createUpdater, MutativeUpdateEvent } from '../src';
+import {
+  assign,
+  createUpdater,
+  MutativeOptions,
+  MutativeUpdateEvent,
+} from '../src';
 
 it('should update the context without modifying previous contexts', () => {
   const initialContext = {
@@ -318,6 +323,28 @@ it('should pass the mutative options of createUpdater', () => {
   const { tags } = actorRef.getSnapshot().context;
   expect(tags).toEqual(['a']);
   expect(Object.isFrozen(tags)).toBe(true);
+});
+
+it('should ignore enablePatches, which the options type leaves out', () => {
+  const machine = createMachine({
+    types: {} as { context: { count: number } },
+    context: { count: 0 },
+    on: {
+      INC: {
+        actions: assign(
+          ({ context }) => {
+            context.count += 1;
+          },
+          // JavaScript callers can still pass it.
+          { enablePatches: true } as unknown as MutativeOptions<false, false>
+        ),
+      },
+    },
+  });
+
+  const actorRef = createActor(machine).start();
+  actorRef.send({ type: 'INC' });
+  expect(actorRef.getSnapshot().context).toEqual({ count: 1 });
 });
 
 it('should reject a mark that returns a copy function with enableAutoFreeze', () => {
