@@ -24,11 +24,11 @@ npm install xstate mutative xstate-mutative
 Import the Mutative utilities:
 
 ```js
-import { createMachine, interpret } from 'xstate';
+import { createMachine, createActor } from 'xstate';
 import { assign, createUpdater } from 'xstate-mutative';
 
-const levelUpdater = createUpdater('UPDATE_LEVEL', (ctx, { input }) => {
-  ctx.level = input;
+const levelUpdater = createUpdater('UPDATE_LEVEL', ({ context, event }) => {
+  context.level = event.input;
 });
 
 const toggleMachine = createMachine({
@@ -45,7 +45,9 @@ const toggleMachine = createMachine({
           target: 'active',
           // Immutably update context the same "mutable"
           // way as you would do with Mutative!
-          actions: assign((ctx) => ctx.count++),
+          actions: assign(({ context }) => {
+            context.count++;
+          }),
         },
       },
     },
@@ -63,24 +65,71 @@ const toggleMachine = createMachine({
   },
 });
 
-const toggleService = interpret(toggleMachine)
-  .onTransition((state) => {
-    console.log(state.context);
-  })
-  .start();
+const toggleActor = createActor(toggleMachine);
+toggleActor.subscribe((snapshot) => {
+  console.log(snapshot.context);
+});
+toggleActor.start();
+// { count: 0, level: 0 }
 
-toggleService.send({ type: 'TOGGLE' });
+toggleActor.send({ type: 'TOGGLE' });
 // { count: 1, level: 0 }
 
-toggleService.send(levelUpdater.update(9));
+toggleActor.send(levelUpdater.update(9));
 // { count: 1, level: 9 }
 
-toggleService.send({ type: 'TOGGLE' });
-// { count: 2, level: 9 }
+toggleActor.send({ type: 'TOGGLE' });
+// { count: 1, level: 9 }
 
-toggleService.send(levelUpdater.update(-100));
+toggleActor.send(levelUpdater.update(-100));
 // Notice how the level is not updated in 'inactive' state:
-// { count: 2, level: 9 }
+// { count: 1, level: 9 }
+```
+
+### TypeScript
+
+`assign()` infers the context and the event from the machine. `createUpdater()` is created outside the machine, so pass it the context type, the updater's event type and the machine's event types:
+
+```ts
+import { createActor, createMachine } from 'xstate';
+import {
+  assign,
+  createUpdater,
+  type MutativeUpdateEvent,
+} from 'xstate-mutative';
+
+interface FormContext {
+  name: string;
+  tags: string[];
+}
+
+type NameUpdateEvent = MutativeUpdateEvent<'UPDATE_NAME', string>;
+type FormEvent = NameUpdateEvent | { type: 'ADD_TAG'; tag: string };
+
+const nameUpdater = createUpdater<FormContext, NameUpdateEvent, FormEvent>(
+  'UPDATE_NAME',
+  ({ context, event }) => {
+    context.name = event.input;
+  }
+);
+
+const formMachine = createMachine({
+  types: {} as { context: FormContext; events: FormEvent },
+  context: { name: '', tags: [] },
+  on: {
+    [nameUpdater.type]: { actions: nameUpdater.action },
+    ADD_TAG: {
+      actions: assign(({ context, event }) => {
+        context.tags.push(event.tag);
+      }),
+    },
+  },
+});
+
+const formActor = createActor(formMachine).start();
+formActor.send(nameUpdater.update('David'));
+formActor.send({ type: 'ADD_TAG', tag: 'admin' });
+// formActor.getSnapshot().context: { name: 'David', tags: ['admin'] }
 ```
 
 ### Mutative Options
