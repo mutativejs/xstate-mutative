@@ -88,7 +88,7 @@ toggleActor.send(levelUpdater.update(-100));
 
 ### TypeScript
 
-`assign()` infers the context and the event from the machine. `createUpdater()` is created outside the machine, so pass it the context type, the updater's event type and the machine's event types:
+`assign()` infers the context and the event from the machine. An updater is created outside the machine, so pass `createUpdater()` the context type, the updater's event type and the machine's event types:
 
 ```ts
 import { createActor, createMachine } from 'xstate';
