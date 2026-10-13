@@ -20,6 +20,7 @@
   },
   "scripts": {
     "test": "jest",
+    "test:prod": "NODE_ENV=production jest",
     "test:coverage": "jest --coverage && coveralls < coverage/lcov.info",
     "clean": "rimraf dist",
     "build": "yarn clean && tsc --skipLibCheck && yarn build:prod",
