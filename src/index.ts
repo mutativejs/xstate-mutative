@@ -14,15 +14,10 @@ import {
   assign as xstateAssign,
 } from 'xstate';
 
-// Distribute over `boolean`, so that a mark that returns a copy function is
-// rejected with `enableAutoFreeze: true` also when the freeze flag is not
-// inferred, as Mutative throws for that combination.
-export type MutativeOptions<
-  O extends PatchesOptions,
-  F extends boolean
-> = F extends boolean
-  ? Pick<Options<O, F>, Exclude<keyof Options<O, F>, 'enablePatches'>>
-  : never;
+export type MutativeOptions<O extends PatchesOptions, F extends boolean> = Pick<
+  Options<O, F>,
+  Exclude<keyof Options<O, F>, 'enablePatches'>
+>;
 
 export type MutativeAssigner<
   TContext extends MachineContext,

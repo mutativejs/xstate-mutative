@@ -347,27 +347,32 @@ it('should ignore enablePatches, which the options type leaves out', () => {
   expect(actorRef.getSnapshot().context).toEqual({ count: 1 });
 });
 
-it('should reject a mark that returns a copy function with enableAutoFreeze', () => {
+it('should type the mutative options as mutative does', () => {
   interface Context {
     tags: string[];
   }
   type TagEvent = MutativeUpdateEvent<'ADD_TAG', string>;
   const copyMark = () => () => ({});
-  const frozen = { enableAutoFreeze: true, mark: copyMark } as const;
-  const unfrozen = { enableAutoFreeze: false, mark: copyMark } as const;
 
-  // Mutative throws for this combination, so the types reject it, also when
-  // the type arguments are given explicitly.
-  createUpdater<Context, TagEvent, TagEvent>(
-    'ADD_TAG',
-    () => {},
-    // @ts-expect-error a mark that returns a copy function needs auto-freeze off
-    frozen
-  );
-  createUpdater<Context, TagEvent, TagEvent>('ADD_TAG', () => {}, unfrozen);
+  // TypeScript widens the freeze flag of an options object to boolean, which
+  // allows a mark that returns a copy function, as Mutative's create() does.
+  const options = { enableAutoFreeze: false, mark: copyMark };
+  createUpdater<Context, TagEvent, TagEvent>('ADD_TAG', () => {}, options);
+  assign<Context>(() => {}, options);
+
+  // A freeze flag inferred as true rejects that mark, as Mutative throws for
+  // the combination.
+  const frozen = { enableAutoFreeze: true, mark: copyMark } as const;
   // @ts-expect-error a mark that returns a copy function needs auto-freeze off
-  assign<Context>(() => {}, frozen);
-  assign<Context>(() => {}, unfrozen);
+  assign(() => {}, frozen);
+
+  // The options type is an object type that other types can extend.
+  interface LabeledOptions<F extends boolean>
+    extends MutativeOptions<false, F> {
+    label?: string;
+  }
+  const labeled: LabeledOptions<false> = { strict: true, label: 'tags' };
+  assign<Context>(() => {}, labeled);
 });
 
 it('should draft class instances that a mark makes immutable', () => {
