@@ -15,7 +15,7 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
-      - run: yarn
+      - run: yarn install --frozen-lockfile
       - run: yarn lint
       - run: yarn build
       - run: yarn test
