@@ -6,7 +6,7 @@
     "jest": true
   },
   "extends": [
-    "airbnb",
+    "airbnb-base",
     "prettier",
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
@@ -27,6 +27,14 @@
   ],
   "rules": {
     "no-useless-constructor": 0,
+    "no-plusplus": "off",
+    "no-empty-function": "off",
+    "@typescript-eslint/no-empty-function": [
+      "error",
+      {
+        "allow": ["arrowFunctions", "functions", "methods"]
+      }
+    ],
     "class-methods-use-this": 0,
     "no-underscore-dangle": 0,
     "@typescript-eslint/no-non-null-assertion": 0,

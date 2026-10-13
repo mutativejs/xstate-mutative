@@ -19,8 +19,6 @@ export type MutativeOptions<O extends PatchesOptions, F extends boolean> = Pick<
   Exclude<keyof Options<O, F>, 'enablePatches'>
 >;
 
-export { mutativeAssign as assign };
-
 export type MutativeAssigner<
   TContext extends MachineContext,
   TExpressionEvent extends EventObject,
@@ -46,22 +44,29 @@ function mutativeAssign<
   mutativeOptions?: MutativeOptions<false, TAutoFreeze>
 ) {
   return xstateAssign<TContext, TExpressionEvent, TParams, TEvent, TActor>(
-    ({ context, ...rest }, params) => {
-      return create(
+    ({ context, ...rest }, params) =>
+      create(
         context,
-        (draft) =>
-          void recipe(
+        (draft) => {
+          recipe(
             {
               context: draft,
               ...rest,
-            } as any,
+            } as unknown as AssignArgs<
+              Draft<TContext>,
+              TExpressionEvent,
+              TEvent,
+              TActor
+            >,
             params
-          ),
+          );
+        },
         mutativeOptions
-      ) as LowInfer<TContext>;
-    }
+      ) as LowInfer<TContext>
   );
 }
+
+export { mutativeAssign as assign };
 
 export interface MutativeUpdateEvent<
   TType extends string = string,
@@ -88,12 +93,11 @@ export function createUpdater<
   >,
   mutativeOptions?: MutativeOptions<false, TAutoFreeze>
 ) {
-  const update = (input: TExpressionEvent['input']): TExpressionEvent => {
-    return {
+  const update = (input: TExpressionEvent['input']): TExpressionEvent =>
+    ({
       type,
       input,
-    } as TExpressionEvent;
-  };
+    } as TExpressionEvent);
 
   return {
     update,

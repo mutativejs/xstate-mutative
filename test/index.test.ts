@@ -3,13 +3,13 @@ import { createMachine, createActor } from 'xstate';
 import { assign, createUpdater, MutativeUpdateEvent } from '../src';
 
 it('should update the context without modifying previous contexts', () => {
-  const context = {
+  const initialContext = {
     count: 0,
   };
   const countMachine = createMachine({
-    types: {} as { context: typeof context },
+    types: {} as { context: typeof initialContext },
     id: 'count',
-    context,
+    context: initialContext,
     initial: 'active',
     states: {
       active: {
@@ -33,14 +33,14 @@ it('should update the context without modifying previous contexts', () => {
 });
 
 it('should perform multiple updates correctly', () => {
-  const context = {
+  const initialContext = {
     count: 0,
   };
   const countMachine = createMachine(
     {
-      types: {} as { context: typeof context },
+      types: {} as { context: typeof initialContext },
       id: 'count',
-      context,
+      context: initialContext,
       initial: 'active',
       states: {
         active: {
@@ -67,7 +67,7 @@ it('should perform multiple updates correctly', () => {
 });
 
 it('should perform deep updates correctly', () => {
-  const context = {
+  const initialContext = {
     foo: {
       bar: {
         baz: [1, 2, 3],
@@ -76,9 +76,9 @@ it('should perform deep updates correctly', () => {
   };
   const countMachine = createMachine(
     {
-      types: {} as { context: typeof context },
+      types: {} as { context: typeof initialContext },
       id: 'count',
-      context,
+      context: initialContext,
       initial: 'active',
       states: {
         active: {
@@ -112,7 +112,7 @@ it('should create updates', () => {
       };
     };
   }
-  const context: MyContext = {
+  const initialContext: MyContext = {
     foo: {
       bar: {
         baz: [1, 2, 3],
@@ -125,7 +125,7 @@ it('should create updates', () => {
     | MutativeUpdateEvent<'OTHER', string>;
 
   const bazUpdater = createUpdater<
-    typeof context,
+    typeof initialContext,
     MutativeUpdateEvent<'UPDATE_BAZ', number>,
     MyEvents
   >('UPDATE_BAZ', ({ context, event }) => {
@@ -138,7 +138,7 @@ it('should create updates', () => {
       events: {} as MyEvents,
     },
     id: 'count',
-    context,
+    context: initialContext,
     initial: 'active',
     states: {
       active: {
@@ -206,9 +206,7 @@ it('should create updates (form example)', (done) => {
       submitting: {
         always: {
           target: 'success',
-          guard: ({ context }) => {
-            return context.name === 'David' && context.age === 0;
-          },
+          guard: ({ context }) => context.name === 'David' && context.age === 0,
         },
       },
       success: {
