@@ -21,7 +21,4 @@ jobs:
       - run: yarn test
       - run: yarn test:prod
       - run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_AUTH_TOKEN}}
-          CI: true
 
