@@ -1,4 +1,4 @@
-import { current, unsafe } from 'mutative';
+import { unsafe } from 'mutative';
 import { createMachine, createActor } from 'xstate';
 import { assign, createUpdater, MutativeUpdateEvent } from '../src';
 
@@ -480,48 +480,78 @@ it('should move array elements without modifying previous contexts', () => {
   expect(reordered.queue[0]).toBe(retried.queue[3]);
 });
 
-it('should search a current() snapshot and change the match through the draft', () => {
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Pauses one of 2,000 rows in strict mode, searching a current() snapshot or
+// the draft itself. Mutative warns about unchanged drafts once per module
+// instance, so each run loads fresh modules and counts its own warnings.
+async function pauseRow(search: 'current' | 'draft') {
   interface Row {
     id: number;
     paused: boolean;
   }
-  const machine = createMachine({
-    types: {} as {
-      context: { rows: Row[] };
-      events: { type: 'PAUSE'; id: number };
-    },
-    context: {
-      rows: Array.from({ length: 2000 }, (_, id) => ({ id, paused: false })),
-    },
-    on: {
-      PAUSE: {
-        actions: assign(
-          ({ context, event }) => {
-            const index = current(context.rows).findIndex(
-              (row) => row.id === event.id
-            );
-            context.rows[index].paused = true;
-          },
-          { strict: true }
-        ),
+  let result!: {
+    previous: { rows: Row[] };
+    next: { rows: Row[] };
+    warnings: number;
+  };
+  await jest.isolateModulesAsync(async () => {
+    const xstate = await import('xstate');
+    const mutative = await import('mutative');
+    const xstateMutative = await import('../src');
+    const machine = xstate.createMachine({
+      types: {} as {
+        context: { rows: Row[] };
+        events: { type: 'PAUSE'; id: number };
       },
-    },
+      context: {
+        rows: Array.from({ length: 2000 }, (_, id) => ({ id, paused: false })),
+      },
+      on: {
+        PAUSE: {
+          actions: xstateMutative.assign(
+            ({ context, event }) => {
+              const rows =
+                search === 'current'
+                  ? mutative.current(context.rows)
+                  : context.rows;
+              const index = rows.findIndex((row) => row.id === event.id);
+              context.rows[index].paused = true;
+            },
+            { strict: true }
+          ),
+        },
+      },
+    });
+
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const actorRef = xstate.createActor(machine).start();
+      const previous = actorRef.getSnapshot().context;
+      actorRef.send({ type: 'PAUSE', id: 1500 });
+      const next = actorRef.getSnapshot().context;
+      result = { previous, next, warnings: warn.mock.calls.length };
+    } finally {
+      warn.mockRestore();
+    }
   });
+  return result;
+}
 
-  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-  try {
-    const actorRef = createActor(machine).start();
-    const previous = actorRef.getSnapshot().context;
-    actorRef.send({ type: 'PAUSE', id: 1500 });
-    const next = actorRef.getSnapshot().context;
+it('should search a current() snapshot and change the match through the draft', async () => {
+  const { previous, next, warnings } = await pauseRow('current');
 
-    expect(next.rows[1500]).toEqual({ id: 1500, paused: true });
-    expect(previous.rows[1500]).toEqual({ id: 1500, paused: false });
-    expect(next.rows[0]).toBe(previous.rows[0]);
-    // A search through the draft would leave a draft for each row that it
-    // visits, which strict mode reports in development builds.
-    expect(warn).not.toHaveBeenCalled();
-  } finally {
-    warn.mockRestore();
-  }
+  expect(next.rows[1500]).toEqual({ id: 1500, paused: true });
+  expect(previous.rows[1500]).toEqual({ id: 1500, paused: false });
+  expect(next.rows[0]).toBe(previous.rows[0]);
+  expect(warnings).toBe(0);
+});
+
+it('should warn about a search through the draft in development builds only', async () => {
+  const { previous, next, warnings } = await pauseRow('draft');
+
+  expect(next.rows[1500]).toEqual({ id: 1500, paused: true });
+  expect(previous.rows[1500]).toEqual({ id: 1500, paused: false });
+  // The search leaves a draft for each of the 1,501 rows that it visits.
+  expect(warnings).toBe(isProduction ? 0 : 1);
 });
