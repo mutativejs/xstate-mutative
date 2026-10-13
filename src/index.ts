@@ -14,9 +14,9 @@ import {
   assign as xstateAssign,
 } from 'xstate';
 
-export type MutativeOptions<O extends PatchesOptions, F extends boolean> = Pick<
+export type MutativeOptions<O extends PatchesOptions, F extends boolean> = Omit<
   Options<O, F>,
-  Exclude<keyof Options<O, F>, 'enablePatches'>
+  'enablePatches'
 >;
 
 export type MutativeAssigner<
