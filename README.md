@@ -156,6 +156,7 @@ const addTodo = assign(
 - `assign()` ignores what a recipe returns, so a recipe has to change the draft. `assign(() => ({ count: 0 }))`, which works with XState's own `assign()`, leaves the context unchanged here; write `assign(({ context }) => { context.count = 0; })` instead.
 - Deleting a key of the context has no effect, as XState merges the next context into a copy of the previous one, which still holds the key. Set the key to `undefined` instead; the context then keeps it with the value `undefined`.
 - Recipes have to be synchronous. The draft is revoked when the recipe returns, so changes after an `await` are lost and throw. Do async work in an actor, and assign its result.
+- With `enableAutoFreeze`, Mutative also freezes the objects that the next context shares with the previous one. These include the objects of the machine's initial `context`, which every actor of the machine starts with, so don't change them in place elsewhere.
 
 ## Credits
 
