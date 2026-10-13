@@ -52,15 +52,12 @@ function mutativeAssign<
   // turn them off also for JavaScript callers, which the types do not stop.
   const options = { ...mutativeOptions, enablePatches: false as const };
   return xstateAssign<TContext, TExpressionEvent, TParams, TEvent, TActor>(
-    ({ context, ...rest }, params) =>
+    (args, params) =>
       create(
-        context,
+        args.context,
         (draft) => {
           recipe(
-            {
-              context: draft,
-              ...rest,
-            } as unknown as AssignArgs<
+            { ...args, context: draft } as unknown as AssignArgs<
               Draft<TContext>,
               TExpressionEvent,
               TEvent,
