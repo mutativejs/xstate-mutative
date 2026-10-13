@@ -58,7 +58,7 @@ function mutativeAssign<
       create(
         args.context,
         (draft) => {
-          recipe(
+          const result: unknown = recipe(
             { ...args, context: draft } as unknown as AssignArgs<
               Draft<TContext>,
               TExpressionEvent,
@@ -67,6 +67,16 @@ function mutativeAssign<
             >,
             params
           );
+          // The draft is revoked once the recipe returns, so the changes that
+          // an async recipe makes later would be lost without an error.
+          if (
+            result &&
+            typeof (result as PromiseLike<unknown>).then === 'function'
+          ) {
+            throw new Error(
+              'xstate-mutative: assign() recipes must be synchronous, but this one returned a Promise.'
+            );
+          }
         },
         withoutPatches(mutativeOptions)
       ) as LowInfer<TContext>

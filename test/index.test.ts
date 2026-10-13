@@ -644,3 +644,28 @@ it('should warn about a search through the draft in development builds only', as
   // The search leaves a draft for each of the 1,501 rows that it visits.
   expect(warnings).toBe(isProduction ? 0 : 1);
 });
+
+it('should throw for a recipe that returns a promise', () => {
+  const machine = createMachine({
+    types: {} as { context: { count: number } },
+    context: { count: 0 },
+    on: {
+      INC: {
+        actions: assign(async ({ context }) => {
+          context.count += 1;
+        }),
+      },
+    },
+  });
+
+  const errors: unknown[] = [];
+  const actorRef = createActor(machine);
+  actorRef.subscribe({ error: (error) => errors.push(error) });
+  actorRef.start();
+  actorRef.send({ type: 'INC' });
+
+  expect(errors).toHaveLength(1);
+  expect((errors[0] as Error).message).toMatch(/must be synchronous/);
+  expect(actorRef.getSnapshot().status).toBe('error');
+  expect(actorRef.getSnapshot().context).toEqual({ count: 0 });
+});
