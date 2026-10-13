@@ -320,6 +320,29 @@ it('should pass the mutative options of createUpdater', () => {
   expect(Object.isFrozen(tags)).toBe(true);
 });
 
+it('should reject a mark that returns a copy function with enableAutoFreeze', () => {
+  interface Context {
+    tags: string[];
+  }
+  type TagEvent = MutativeUpdateEvent<'ADD_TAG', string>;
+  const copyMark = () => () => ({});
+  const frozen = { enableAutoFreeze: true, mark: copyMark } as const;
+  const unfrozen = { enableAutoFreeze: false, mark: copyMark } as const;
+
+  // Mutative throws for this combination, so the types reject it, also when
+  // the type arguments are given explicitly.
+  createUpdater<Context, TagEvent, TagEvent>(
+    'ADD_TAG',
+    () => {},
+    // @ts-expect-error a mark that returns a copy function needs auto-freeze off
+    frozen
+  );
+  createUpdater<Context, TagEvent, TagEvent>('ADD_TAG', () => {}, unfrozen);
+  // @ts-expect-error a mark that returns a copy function needs auto-freeze off
+  assign<Context>(() => {}, frozen);
+  assign<Context>(() => {}, unfrozen);
+});
+
 it('should draft class instances that a mark makes immutable', () => {
   class Todo {
     constructor(public text: string, public done = false) {}
