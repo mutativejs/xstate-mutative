@@ -1,4 +1,5 @@
-import { createMachine, createActor } from 'xstate';
+import { unsafe } from 'mutative';
+import { createMachine, createActor, type ProvidedActor } from 'xstate';
 import { assign, createUpdater, MutativeUpdateEvent } from '../src';
 
 it('should update the context without modifying previous contexts', () => {
@@ -228,4 +229,179 @@ it('should create updates (form example)', (done) => {
   service.send(ageUpdater.update(0));
 
   service.send({ type: 'SUBMIT' });
+});
+
+it('should freeze the next context deeply with enableAutoFreeze', () => {
+  interface Context {
+    todos: { text: string; done: boolean }[];
+    tags: Set<string>;
+    owners: Map<string, { name: string }>;
+  }
+  const machine = createMachine({
+    types: {} as { context: Context },
+    context: {
+      todos: [{ text: 'learn', done: false }],
+      tags: new Set(['a']),
+      owners: new Map([['1', { name: 'Ada' }]]),
+    },
+    on: {
+      DONE: {
+        actions: assign(
+          ({ context }) => {
+            context.todos[0].done = true;
+            context.tags.add('b');
+          },
+          { enableAutoFreeze: true }
+        ),
+      },
+      RENAME: {
+        actions: assign(
+          ({ context }) => {
+            context.owners.get('1')!.name = 'Grace';
+          },
+          { enableAutoFreeze: true }
+        ),
+      },
+    },
+  });
+
+  const actorRef = createActor(machine).start();
+  const previous = actorRef.getSnapshot().context;
+  actorRef.send({ type: 'DONE' });
+  const next = actorRef.getSnapshot().context;
+
+  expect(next.todos[0].done).toBe(true);
+  expect([...next.tags]).toEqual(['a', 'b']);
+  expect(previous.todos[0].done).toBe(false);
+  expect([...previous.tags]).toEqual(['a']);
+  expect(Object.isFrozen(next.todos)).toBe(true);
+  expect(Object.isFrozen(next.todos[0])).toBe(true);
+  // Mutative 2 freezes Map and Set instances, also the ones that the next
+  // context shares with the previous one.
+  expect(Object.isFrozen(next.tags)).toBe(true);
+  expect(next.owners).toBe(previous.owners);
+  expect(Object.isFrozen(next.owners)).toBe(true);
+  expect(Object.isFrozen(next.owners.get('1'))).toBe(true);
+  expect(() => next.tags.add('c')).toThrow();
+  expect(() => next.owners.set('2', { name: 'Linus' })).toThrow();
+
+  // Later updates copy the frozen parts that they change.
+  actorRef.send({ type: 'RENAME' });
+  expect(actorRef.getSnapshot().context.owners.get('1')).toEqual({
+    name: 'Grace',
+  });
+  expect(next.owners.get('1')).toEqual({ name: 'Ada' });
+});
+
+it('should pass the mutative options of createUpdater', () => {
+  interface Context {
+    tags: string[];
+  }
+  type TagEvent = MutativeUpdateEvent<'ADD_TAG', string>;
+
+  const tagUpdater = createUpdater<
+    Context,
+    TagEvent,
+    TagEvent,
+    ProvidedActor,
+    true
+  >(
+    'ADD_TAG',
+    ({ context, event }) => {
+      context.tags.push(event.input);
+    },
+    { enableAutoFreeze: true }
+  );
+
+  const machine = createMachine({
+    types: {} as { context: Context; events: TagEvent },
+    context: { tags: [] },
+    on: {
+      [tagUpdater.type]: { actions: tagUpdater.action },
+    },
+  });
+
+  const actorRef = createActor(machine).start();
+  actorRef.send(tagUpdater.update('a'));
+  const { tags } = actorRef.getSnapshot().context;
+  expect(tags).toEqual(['a']);
+  expect(Object.isFrozen(tags)).toBe(true);
+});
+
+it('should draft class instances that a mark makes immutable', () => {
+  class Todo {
+    constructor(public text: string, public done = false) {}
+  }
+  const machine = createMachine({
+    types: {} as { context: { todo: Todo } },
+    context: { todo: new Todo('learn') },
+    on: {
+      DONE: {
+        actions: assign(
+          ({ context }) => {
+            context.todo.done = true;
+          },
+          {
+            mark: (target, { immutable }) =>
+              target instanceof Todo ? immutable : undefined,
+          }
+        ),
+      },
+    },
+  });
+
+  const actorRef = createActor(machine).start();
+  const previous = actorRef.getSnapshot().context;
+  actorRef.send({ type: 'DONE' });
+  const next = actorRef.getSnapshot().context;
+
+  expect(next.todo).toBeInstanceOf(Todo);
+  expect(next.todo).not.toBe(previous.todo);
+  expect(next.todo.done).toBe(true);
+  expect(previous.todo.done).toBe(false);
+});
+
+it('should forbid reading values that cannot be drafted in strict mode', () => {
+  class Clock {
+    now = 1;
+  }
+  const machine = createMachine({
+    types: {} as {
+      context: { clock: Clock; now: number };
+      events: { type: 'READ' } | { type: 'READ_UNSAFE' };
+    },
+    context: { clock: new Clock(), now: 0 },
+    on: {
+      READ_UNSAFE: {
+        actions: assign(
+          ({ context }) => {
+            context.now = unsafe(() => context.clock.now);
+          },
+          { strict: true }
+        ),
+      },
+      READ: {
+        actions: assign(
+          ({ context }) => {
+            context.now = context.clock.now;
+          },
+          { strict: true }
+        ),
+      },
+    },
+  });
+
+  const errors: unknown[] = [];
+  const actorRef = createActor(machine);
+  actorRef.subscribe({ error: (error) => errors.push(error) });
+  actorRef.start();
+
+  actorRef.send({ type: 'READ_UNSAFE' });
+  expect(actorRef.getSnapshot().context.now).toBe(1);
+  expect(errors).toEqual([]);
+
+  actorRef.send({ type: 'READ' });
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toBeInstanceOf(Error);
+  expect(actorRef.getSnapshot().status).toBe('error');
 });
