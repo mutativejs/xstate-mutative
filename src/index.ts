@@ -40,7 +40,7 @@ function mutativeAssign<
     | undefined,
   TEvent extends EventObject = EventObject,
   TActor extends ProvidedActor = ProvidedActor,
-  TAutoFreeze extends boolean = false
+  TAutoFreeze extends boolean = boolean
 >(
   recipe: MutativeAssigner<TContext, TExpressionEvent, TParams, TEvent, TActor>,
   mutativeOptions?: MutativeOptions<false, TAutoFreeze>
@@ -76,7 +76,7 @@ export function createUpdater<
   TExpressionEvent extends MutativeUpdateEvent,
   TEvent extends EventObject,
   TActor extends ProvidedActor = ProvidedActor,
-  TAutoFreeze extends boolean = false
+  TAutoFreeze extends boolean = boolean
 >(
   type: TExpressionEvent['type'],
   recipe: MutativeAssigner<

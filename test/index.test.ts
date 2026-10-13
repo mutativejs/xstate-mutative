@@ -1,5 +1,5 @@
 import { current, unsafe } from 'mutative';
-import { createMachine, createActor, type ProvidedActor } from 'xstate';
+import { createMachine, createActor } from 'xstate';
 import { assign, createUpdater, MutativeUpdateEvent } from '../src';
 
 it('should update the context without modifying previous contexts', () => {
@@ -299,13 +299,7 @@ it('should pass the mutative options of createUpdater', () => {
   }
   type TagEvent = MutativeUpdateEvent<'ADD_TAG', string>;
 
-  const tagUpdater = createUpdater<
-    Context,
-    TagEvent,
-    TagEvent,
-    ProvidedActor,
-    true
-  >(
+  const tagUpdater = createUpdater<Context, TagEvent, TagEvent>(
     'ADD_TAG',
     ({ context, event }) => {
       context.tags.push(event.input);
