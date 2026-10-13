@@ -151,6 +151,10 @@ const addTodo = assign(
 
 `enablePatches` is not supported, since an `assign()` action has to return the next context.
 
+### Caveats
+
+- `assign()` ignores what a recipe returns, so a recipe has to change the draft. `assign(() => ({ count: 0 }))`, which works with XState's own `assign()`, leaves the context unchanged here; write `assign(({ context }) => { context.count = 0; })` instead.
+
 ## Credits
 
 `xstate-mutative` is inspired by `@xstate/immer`.
